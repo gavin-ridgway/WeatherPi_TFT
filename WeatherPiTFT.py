@@ -157,6 +157,7 @@ SCALE = float(DISPLAY_WIDTH / SURFACE_WIDTH)
 ZOOM = 1
 
 FPS = config['DISPLAY']['FPS']
+SHOW_FPS = config['DISPLAY']['SHOW_FPS']
 AA = config['DISPLAY']['AA']
 ANIMATION = config['DISPLAY']['ANIMATION']
 
@@ -704,7 +705,6 @@ class Update(object):
         precip = JSON_DATA['daily']['data'][0]['pop']
         precip_string = str(f'{precip} %')
 
-        today = daily_forecast[0]
         day_1 = daily_forecast[1]
         day_2 = daily_forecast[2]
         day_3 = daily_forecast[3]
@@ -723,8 +723,8 @@ class Update(object):
         day_2_min_max_temp = f"{int(day_2['low_temp'])} | {int(day_2['high_temp'])}"
         day_3_min_max_temp = f"{int(day_3['low_temp'])} | {int(day_3['high_temp'])}"
 
-        sunrise = convert_timestamp(today['sunrise_ts'], df_sun)
-        sunset = convert_timestamp(today['sunset_ts'], df_sun)
+        sunrise = current_forecast['sunrise']
+        sunset  = current_forecast['sunset']
 
         wind_direction = str(current_forecast['wind_cdir'])
         wind_speed = float(current_forecast['wind_spd'])
@@ -756,8 +756,8 @@ class Update(object):
         DrawImage(new_surf, images[FORECASTICON_DAY_2], 200, size=50).center(3, 1)
         DrawImage(new_surf, images[FORECASTICON_DAY_3], 200, size=50).center(3, 2)
 
-        DrawImage(new_surf, images['sunrise'], 260, size=25).left()
-        DrawImage(new_surf, images['sunset'], 290, size=25).left()
+        DrawImage(new_surf, images['sunrise'], 250, size=25).left()
+        DrawImage(new_surf, images['sunset'], 275, size=25).left()
 
         draw_wind_layer(new_surf, current_forecast['wind_dir'], 285)
 
@@ -782,11 +782,16 @@ class Update(object):
         DrawString(new_surf, day_2_min_max_temp, FONT_SMALL_BOLD, MAIN_FONT, 180).center(3, 1)
         DrawString(new_surf, day_3_min_max_temp, FONT_SMALL_BOLD, MAIN_FONT, 180).center(3, 2)
 
-        DrawString(new_surf, sunrise, FONT_SMALL_BOLD, MAIN_FONT, 265).left(30)
-        DrawString(new_surf, sunset, FONT_SMALL_BOLD, MAIN_FONT, 292).left(30)
+        DrawString(new_surf, sunrise, FONT_SMALL_BOLD, MAIN_FONT, 255).left(30)
+        DrawString(new_surf, sunset, FONT_SMALL_BOLD, MAIN_FONT, 277).left(30)
 
         DrawString(new_surf, wind_direction, FONT_SMALL_BOLD, MAIN_FONT, 250).center(3, 2)
         DrawString(new_surf, wind_speed_string, FONT_SMALL_BOLD, MAIN_FONT, 300).center(3, 2)
+
+        aqi = current_forecast['aqi']
+        airqual_string = str(f'AQ {aqi}')
+        DrawString(new_surf, airqual_string, FONT_SMALL, MAIN_FONT, 35).left(offset=-10)
+        DrawString(new_surf, current_forecast['city_name'], FONT_SMALL, MAIN_FONT, 305).left(offset=-10)
 
         weather_surf = new_surf
 
@@ -962,7 +967,7 @@ def loop():
 
         draw_statusbar()
 
-        if FPS:
+        if SHOW_FPS:
             draw_fps()
 
         if ANIMATION:
