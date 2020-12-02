@@ -98,10 +98,10 @@ try:
         WEATHERBIT_IO_KEY = config['WEATHERBIT_DEV_KEY']
 
     elif config['ENV'] == 'Pi':
-        if config['DISPLAY']['FRAMEBUFFER'] is not False:
-            # using the dashboard on a raspberry with TFT displays might make this necessary
-            os.putenv('SDL_FBDEV', config['DISPLAY']['FRAMEBUFFER'])
-            os.environ["SDL_VIDEODRIVER"] = "fbcon"
+        #if config['DISPLAY']['FRAMEBUFFER'] is not False:
+        #    # using the dashboard on a raspberry with TFT displays might make this necessary
+        #    os.putenv('SDL_FBDEV', config['DISPLAY']['FRAMEBUFFER'])
+        #    os.environ["SDL_VIDEODRIVER"] = "fbcon"
 
         LOG_PATH = '/mnt/ramdisk/'
         WEATHERBIT_IO_KEY = config['WEATHERBIT_IO_KEY']
@@ -150,8 +150,8 @@ DISPLAY_WIDTH = int(config["DISPLAY"]["WIDTH"])
 DISPLAY_HEIGHT = int(config["DISPLAY"]["HEIGHT"])
 
 # the drawing area to place all text and img on
-SURFACE_WIDTH = 240
-SURFACE_HEIGHT = 320
+SURFACE_WIDTH = 240 # 320
+SURFACE_HEIGHT = 320 # 480
 
 SCALE = float(DISPLAY_WIDTH / SURFACE_WIDTH)
 ZOOM = 1
@@ -335,7 +335,9 @@ class Particles(object):
                     x = random.randrange(0, self.size)
                     particle_list[i][0] = x
 
-            surf.blit(self.surf, (int(155 * ZOOM), int(140 * ZOOM)))
+            ani_x = int(SURFACE_WIDTH / ZOOM) - 85
+            ani_y = 140
+            surf.blit(self.surf, (ani_x * ZOOM, ani_y * ZOOM))
 
 
 class DrawString:
@@ -888,7 +890,7 @@ def draw_moon_layer(surf, y, size):
         sum_x += 2 * x
         sum_length += end[0] - start[0]
 
-    logger.debug(f'moon phase age: {moon_age} percentage: {round(100 - (sum_length / sum_x) * 100, 1)}')
+    logger.info(f'moon phase age: {moon_age} percentage: {round(100 - (sum_length / sum_x) * 100, 1)}')
 
     image = image.resize((size, size), Image.LANCZOS if AA else Image.BILINEAR)
     image = pygame.image.fromstring(image.tobytes(), image.size, image.mode)
@@ -903,7 +905,7 @@ def draw_wind_layer(surf, angle, y):
     DrawImage(surf, images['circle'], y, size=30, fillcolor=WHITE).draw_middle_position_icon()
     DrawImage(surf, images['arrow'], y, size=30, fillcolor=RED, angle=-angle).draw_middle_position_icon()
 
-    logger.debug(f'wind direction: {angle}')
+    logger.info(f'wind direction: {angle}')
 
 
 def draw_statusbar():

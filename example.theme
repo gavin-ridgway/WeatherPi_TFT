@@ -1,6 +1,6 @@
 {
   "DATE_FORMAT": {
-    "DATE": "%A - %d. %b %Y",
+    "DATE": "%A %d-%b-%Y",
     "TIME": "%H:%M:%S",
     "FORECAST_DAY": "%a",
     "SUNRISE_SUNSET": "%H:%M"
