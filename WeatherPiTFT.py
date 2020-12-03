@@ -249,6 +249,7 @@ DATE_SIZE = int(theme["FONT"]["DATE_SIZE"] * ZOOM)
 CLOCK_SIZE = int(theme["FONT"]["CLOCK_SIZE"] * ZOOM)
 SMALL_SIZE = int(theme["FONT"]["SMALL_SIZE"] * ZOOM)
 BIG_SIZE = int(theme["FONT"]["BIG_SIZE"] * ZOOM)
+STD_SIZE = int(theme["FONT"]["STD_SIZE"] * ZOOM)
 
 FONT_SMALL = pygame.font.Font(FONT_PATH + FONT_MEDIUM, SMALL_SIZE)
 FONT_SMALL_BOLD = pygame.font.Font(FONT_PATH + FONT_BOLD, SMALL_SIZE)
@@ -256,7 +257,9 @@ FONT_BIG = pygame.font.Font(FONT_PATH + FONT_MEDIUM, BIG_SIZE)
 FONT_BIG_BOLD = pygame.font.Font(FONT_PATH + FONT_BOLD, BIG_SIZE)
 DATE_FONT = pygame.font.Font(FONT_PATH + FONT_BOLD, DATE_SIZE)
 CLOCK_FONT = pygame.font.Font(FONT_PATH + FONT_BOLD, CLOCK_SIZE)
+FONT_STD = pygame.font.Font(FONT_PATH + FONT_MEDIUM, STD_SIZE)
 
+WEATHERCODE = 900
 WEATHERICON = 'unknown'
 
 FORECASTICON_DAY_1 = 'unknown'
@@ -290,14 +293,13 @@ def image_factory(image_path):
 class Particles(object):
     def __init__(self):
         self.size = int(20 * ZOOM)
-        self.count = 20
         self.surf = pygame.Surface((self.size, self.size))
 
-    def create_particle_list(self):
+    def create_particle_list(self, count = 20):
 
         particle_list = []
 
-        for i in range(self.count):
+        for i in range(count):
             x = random.randrange(0, self.size)
             y = random.randrange(0, self.size)
             w = int(1 * ZOOM)
@@ -406,8 +408,7 @@ class DrawImage:
         :param y: the y-position of the image you want to render
         """
         self.image = image
-        if y:
-            self.y = int(y * ZOOM)
+        self.y = int(y * ZOOM)
 
         self.img_size = self.image.size
         self.size = int(size * ZOOM)
@@ -615,7 +616,7 @@ class Update(object):
     @staticmethod
     def icon_path():
 
-        global WEATHERICON, FORECASTICON_DAY_1, \
+        global WEATHERCODE, WEATHERICON, FORECASTICON_DAY_1, \
             FORECASTICON_DAY_2, FORECASTICON_DAY_3, PRECIPTYPE, PRECIPCOLOR, UPDATING
 
         icon_extension = '.png'
@@ -623,6 +624,7 @@ class Update(object):
         updated_list = []
 
         icon = JSON_DATA['current']['data'][0]['weather']['icon']
+        WEATHERCODE = JSON_DATA['current']['data'][0]['weather']['code']
 
         forecast_icon_1 = JSON_DATA['daily']['data'][1]['weather']['icon']
         forecast_icon_2 = JSON_DATA['daily']['data'][2]['weather']['icon']
@@ -672,9 +674,15 @@ class Update(object):
 
         global JSON_DATA, PRECIPCOLOR, PRECIPTYPE
 
+        # Don't use [daily][data][0] - it doesn't appear to reflect
+        # the conditions in [current][data][0]...
+        rain = float(JSON_DATA['current']['data'][0]['precip'])
+        snow = float(JSON_DATA['current']['data'][0]['snow'])
+
+        if rain == 0 and snow == 0:
+            JSON_DATA['daily']['data'][0]['pop'] = 0
+
         pop = int(JSON_DATA['daily']['data'][0]['pop'])
-        rain = float(JSON_DATA['daily']['data'][0]['precip'])
-        snow = float(JSON_DATA['daily']['data'][0]['snow'])
 
         if pop == 0:
 
@@ -707,11 +715,20 @@ class Update(object):
         stats_data = JSON_DATA['stats']
 
         summary_string = current_forecast['weather']['description']
-        temp_out = str(int(current_forecast['temp']))
+        temp_out = str(int(round(current_forecast['temp'])))
         temp_out_unit = '°C' if METRIC else '°F'
         temp_out_string = str(temp_out + temp_out_unit)
         precip = JSON_DATA['daily']['data'][0]['pop']
-        precip_string = str(f'{precip} %')
+        precip_string = str(f'{precip}%')
+
+        # Add humidity, pressure and 'feels like' temperature
+        humidity = current_forecast['rh']
+        pressure = str(int(round(current_forecast['slp'])))
+        humidity_string = str(f'{humidity}%')
+        pressure_units = 'mb'
+        pressure_string = str(pressure + pressure_units)
+        app_temp = str(int(round(current_forecast['app_temp'])))
+        feels_like = str(app_temp + temp_out_unit)
 
         day_1 = daily_forecast[1]
         day_2 = daily_forecast[2]
@@ -727,9 +744,9 @@ class Update(object):
         day_3_ts = time.mktime(time.strptime(day_3['datetime'], '%Y-%m-%d'))
         day_3_ts = convert_timestamp(day_3_ts, df_forecast)
 
-        day_1_min_max_temp = f"{int(day_1['low_temp'])} | {int(day_1['high_temp'])}"
-        day_2_min_max_temp = f"{int(day_2['low_temp'])} | {int(day_2['high_temp'])}"
-        day_3_min_max_temp = f"{int(day_3['low_temp'])} | {int(day_3['high_temp'])}"
+        day_1_min_max_temp = f"{day_1['low_temp']} | {day_1['high_temp']}"
+        day_2_min_max_temp = f"{day_2['low_temp']} | {day_2['high_temp']}"
+        day_3_min_max_temp = f"{day_3['low_temp']} | {day_3['high_temp']}"
 
         sunrise = current_forecast['sunrise']
         sunset  = current_forecast['sunset']
@@ -745,11 +762,11 @@ class Update(object):
         new_surf = pygame.Surface((SURFACE_WIDTH, SURFACE_HEIGHT))
         new_surf.fill(BACKGROUND)
 
-        DrawImage(new_surf, images['wifi'], 5, size=15, fillcolor=RED if CONNECTION_ERROR else GREEN).left()
-        DrawImage(new_surf, images['refresh'], 5, size=15, fillcolor=RED if REFRESH_ERROR else GREEN).right(8)
-        DrawImage(new_surf, images['path'], 5, size=15, fillcolor=RED if PATH_ERROR else GREEN).right(-5)
+        DrawImage(new_surf, images['wifi'], 0, size=15, fillcolor=RED if CONNECTION_ERROR else GREEN).left()
+        DrawImage(new_surf, images['refresh'], 0, size=15, fillcolor=RED if REFRESH_ERROR else GREEN).right(8)
+        DrawImage(new_surf, images['path'], 0, size=15, fillcolor=RED if PATH_ERROR else GREEN).right(-5)
 
-        DrawImage(new_surf, images[WEATHERICON], 68, size=100).center(2, 0, offset=10)
+        DrawImage(new_surf, images[WEATHERICON], 68, size=80).center(3, 1)
 
         if not ANIMATION:
             if PRECIPTYPE == config['LOCALE']['RAIN_STR']:
@@ -773,14 +790,17 @@ class Update(object):
 
         # draw all the strings
         if config["DISPLAY"]["SHOW_API_STATS"]:
-            DrawString(new_surf, str(stats_data['calls_remaining']), FONT_SMALL_BOLD, BLUE, 20).right(offset=-5)
+            DrawString(new_surf, str(stats_data['calls_remaining']), FONT_SMALL_BOLD, BLUE, 10).right(offset=-5)
 
         DrawString(new_surf, summary_string, FONT_SMALL_BOLD, VIOLET, 50).center(1, 0)
 
-        DrawString(new_surf, temp_out_string, FONT_BIG, ORANGE, 75).right()
+        DrawString(new_surf, humidity_string, FONT_BIG, ORANGE, 75).right()
+        DrawString(new_surf, temp_out_string, FONT_BIG, ORANGE, 75).left()
 
         DrawString(new_surf, precip_string, FONT_BIG, PRECIPCOLOR, 105).right()
         DrawString(new_surf, PRECIPTYPE, FONT_SMALL_BOLD, PRECIPCOLOR, 140).right()
+        DrawString(new_surf, feels_like, FONT_SMALL, WHITE, 120).left()
+        DrawString(new_surf, pressure_string, FONT_SMALL, WHITE, 140).left()
 
         DrawString(new_surf, day_1_ts, FONT_SMALL_BOLD, ORANGE, 165).center(3, 0)
         DrawString(new_surf, day_2_ts, FONT_SMALL_BOLD, ORANGE, 165).center(3, 1)
@@ -798,8 +818,8 @@ class Update(object):
 
         aqi = current_forecast['aqi']
         airqual_string = str(f'AQ {aqi}')
-        DrawString(new_surf, airqual_string, FONT_SMALL, MAIN_FONT, 35).left(offset=-10)
-        DrawString(new_surf, current_forecast['city_name'], FONT_SMALL, MAIN_FONT, 305).left(offset=-10)
+        DrawString(new_surf, airqual_string, FONT_SMALL, MAIN_FONT, 35).left(offset=-5)
+        DrawString(new_surf, current_forecast['city_name'], FONT_SMALL, MAIN_FONT, 305).left(offset=-5)
 
         weather_surf = new_surf
 
@@ -934,7 +954,7 @@ def draw_statusbar():
 
 
 def draw_fps():
-    DrawString(dynamic_surf, str(int(clock.get_fps())), FONT_SMALL_BOLD, RED, 20).left()
+    DrawString(dynamic_surf, str(int(clock.get_fps())), FONT_SMALL_BOLD, RED, 10).left()
 
 
 # ToDo: make this useful for touch events
@@ -979,7 +999,13 @@ def loop():
             draw_fps()
 
         if ANIMATION:
-            my_particles.move(dynamic_surf, my_particles_list)
+            ind = 1
+            # For rain/snow, use particle animation list for light, medium or heavy
+            if WEATHERCODE >= 500 and WEATHERCODE < 700:
+                ind = WEATHERCODE % 10
+            if ind < 0 or ind > 2:
+                ind = 1
+            my_particles.move(dynamic_surf, my_particles_list[ind])
 
         # finally take the dynamic surface and blit it to the main surface
         display_surf.blit(dynamic_surf, (0, 0))
@@ -1043,8 +1069,12 @@ if __name__ == '__main__':
     try:
 
         if ANIMATION:
+            # Build particles list for light, medium and heavy conditions
+            my_particles_list = []
             my_particles = Particles()
-            my_particles_list = my_particles.create_particle_list()
+            my_particles_list.append(my_particles.create_particle_list(5))
+            my_particles_list.append(my_particles.create_particle_list(10))
+            my_particles_list.append(my_particles.create_particle_list(20))
 
         images = image_factory(ICON_PATH)
 
