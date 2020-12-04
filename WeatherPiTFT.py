@@ -146,12 +146,12 @@ else:
 
 
 # display settings from theme config
-DISPLAY_WIDTH = int(config["DISPLAY"]["WIDTH"])
-DISPLAY_HEIGHT = int(config["DISPLAY"]["HEIGHT"])
+DISPLAY_WIDTH = int(config["DISPLAY"]["NATIVE_WIDTH"])
+DISPLAY_HEIGHT = int(config["DISPLAY"]["NATIVE_HEIGHT"])
 
 # the drawing area to place all text and img on
-SURFACE_WIDTH = 240
-SURFACE_HEIGHT = 320
+SURFACE_WIDTH = int(config["DISPLAY"]["WIDTH"])
+SURFACE_HEIGHT = int(config["DISPLAY"]["HEIGHT"])
 
 NATIVE_RESOLUTION = config["DISPLAY"]["USE_NATIVE_SIZE"]
 
@@ -202,8 +202,8 @@ if SCALE != 1:
         logger.info(f'zoom correction caused by small display')
     else:
         logger.info('screen bigger as surface area - zooming bigger')
-        SURFACE_WIDTH = int(240 * ZOOM)
-        SURFACE_HEIGHT = int(320 * ZOOM)
+        SURFACE_WIDTH = DISPLAY_WIDTH
+        SURFACE_HEIGHT = DISPLAY_HEIGHT
         logger.info(f'surface correction caused by bigger display')
 
     logger.info(f'SURFACE_WIDTH: {SURFACE_WIDTH} SURFACE_HEIGHT: {SURFACE_HEIGHT} ZOOM: {ZOOM}')
@@ -728,7 +728,9 @@ class Update(object):
         pressure_units = 'mb'
         pressure_string = str(pressure + pressure_units)
         app_temp = str(int(round(current_forecast['app_temp'])))
-        feels_like = str(app_temp + temp_out_unit)
+        feels_like = str("Feel: " + app_temp + temp_out_unit)
+        aqi = current_forecast['aqi']
+        airqual_string = str(f'AQ {aqi}')
 
         day_1 = daily_forecast[1]
         day_2 = daily_forecast[2]
@@ -790,7 +792,7 @@ class Update(object):
 
         # draw all the strings
         if config["DISPLAY"]["SHOW_API_STATS"]:
-            DrawString(new_surf, str(stats_data['calls_remaining']), FONT_SMALL_BOLD, BLUE, 10).right(offset=-5)
+            DrawString(new_surf, str(stats_data['calls_remaining']), FONT_SMALL_BOLD, BLUE, 12).right(offset=-5)
 
         DrawString(new_surf, summary_string, FONT_SMALL_BOLD, VIOLET, 50).center(1, 0)
 
@@ -799,8 +801,9 @@ class Update(object):
 
         DrawString(new_surf, precip_string, FONT_BIG, PRECIPCOLOR, 105).right()
         DrawString(new_surf, PRECIPTYPE, FONT_SMALL_BOLD, PRECIPCOLOR, 140).right()
-        DrawString(new_surf, feels_like, FONT_SMALL, WHITE, 120).left()
-        DrawString(new_surf, pressure_string, FONT_SMALL, WHITE, 140).left()
+        DrawString(new_surf, airqual_string, FONT_SMALL, MAIN_FONT, 110).left()
+        DrawString(new_surf, pressure_string, FONT_SMALL, WHITE, 125).left()
+        DrawString(new_surf, feels_like, FONT_SMALL, WHITE, 140).left()
 
         DrawString(new_surf, day_1_ts, FONT_SMALL_BOLD, ORANGE, 165).center(3, 0)
         DrawString(new_surf, day_2_ts, FONT_SMALL_BOLD, ORANGE, 165).center(3, 1)
@@ -816,10 +819,7 @@ class Update(object):
         DrawString(new_surf, wind_direction, FONT_SMALL_BOLD, MAIN_FONT, 250).center(3, 2)
         DrawString(new_surf, wind_speed_string, FONT_SMALL_BOLD, MAIN_FONT, 300).center(3, 2)
 
-        aqi = current_forecast['aqi']
-        airqual_string = str(f'AQ {aqi}')
-        DrawString(new_surf, airqual_string, FONT_SMALL, MAIN_FONT, 35).left(offset=-5)
-        DrawString(new_surf, current_forecast['city_name'], FONT_SMALL, MAIN_FONT, 305).left(offset=-5)
+        DrawString(new_surf, current_forecast['city_name'], FONT_SMALL, MAIN_FONT, 305).left()
 
         weather_surf = new_surf
 
@@ -916,10 +916,34 @@ def draw_moon_layer(surf, y, size):
         sum_x += 2 * x
         sum_length += end[0] - start[0]
 
-    logger.info(f'moon phase age: {moon_age} percentage: {round(100 - (sum_length / sum_x) * 100, 1)}')
+    percentage = round(100 - (sum_length / sum_x) * 100)
+    logger.info(f'moon phase age: {moon_age} percentage: {percentage}')
 
     image = image.resize((size, size), Image.LANCZOS if AA else Image.BILINEAR)
     image = pygame.image.fromstring(image.tobytes(), image.size, image.mode)
+
+    # Moonphase
+    if percentage == 0 and moon_age < 1:
+        moon_string = 'New'
+    elif percentage > 0 and percentage < 50:
+        if moon_age <= 7:
+            moon_string = 'Waxing Crescent'
+        else:
+            moon_string = 'Waning Crescent'
+    elif percentage == 50:
+        if moon_age <= 14:
+            moon_string = 'First Quarter'
+        else:
+            moon_string = 'Last Quarter'
+    elif percentage > 50 and percentage < 100:
+        if moon_age <= 15:
+            moon_string = 'Waxing Gibbous'
+        else:
+            moon_string = 'Waning Gibbous'
+    elif percentage == 100 and moon_age > 14:
+        moon_string = 'Full'
+
+    DrawString(surf, moon_string, FONT_SMALL, MAIN_FONT, 315).center(3,1)
 
     x = (SURFACE_WIDTH / 2) - (size / 2)
 
@@ -938,23 +962,23 @@ def draw_statusbar():
     global CONNECTION, READING, UPDATING
 
     if CONNECTION:
-        DrawImage(dynamic_surf, images['wifi'], 5, size=15, fillcolor=BLUE).left()
+        DrawImage(dynamic_surf, images['wifi'], 0, size=15, fillcolor=BLUE).left()
         if pygame.time.get_ticks() >= CONNECTION:
             CONNECTION = None
 
     if UPDATING:
-        DrawImage(dynamic_surf, images['refresh'], 5, size=15, fillcolor=BLUE).right(8)
+        DrawImage(dynamic_surf, images['refresh'], 0, size=15, fillcolor=BLUE).right(8)
         if pygame.time.get_ticks() >= UPDATING:
             UPDATING = None
 
     if READING:
-        DrawImage(dynamic_surf, images['path'], 5, size=15, fillcolor=BLUE).right(-5)
+        DrawImage(dynamic_surf, images['path'], 0, size=15, fillcolor=BLUE).right(-5)
         if pygame.time.get_ticks() >= READING:
             READING = None
 
 
 def draw_fps():
-    DrawString(dynamic_surf, str(int(clock.get_fps())), FONT_SMALL_BOLD, RED, 10).left()
+    DrawString(dynamic_surf, str(int(clock.get_fps())), FONT_SMALL_BOLD, RED, 12).left()
 
 
 # ToDo: make this useful for touch events
