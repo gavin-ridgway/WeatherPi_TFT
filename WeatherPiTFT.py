@@ -867,7 +867,6 @@ def convert_timestamp(timestamp, param_string):
 
     return timestring
 
-
 def draw_time_layer():
     timestamp = time.time()
 
@@ -880,12 +879,35 @@ def draw_time_layer():
     DrawString(time_surf, date_day_string, DATE_FONT, MAIN_FONT, 0).center(1, 0)
     DrawString(time_surf, date_time_string, CLOCK_FONT, MAIN_FONT, 15).center(1, 0)
 
+LUNARDAYS = 29.53058770576 # Long Term Average lunar month in days
+LUNARSECS = LUNARDAYS * 60 * 60 * 24 # Lunar month in seconds
+NEW_2000  = 947182380 # First 'new' moon in 2000 - "2000-01-6 18:13" (timestamp)
+MOON_PHASE = [
+        [ "New"             ,  0,              0.5 ],
+        [ "Waxing Crescent" ,  0.5,            6.88264692644 ],
+        [ "First Quarter"   ,  6.88264692644,  7.88264692644 ],
+        [ "Waxing Gibbous"  ,  7.88264692644, 14.26529385288 ],
+        [ "Full"            , 14.26529385288, 15.26529385288 ],
+        [ "Waning Gibbous"  , 15.26529385288, 21.64794077932 ],
+        [ "Last Quarter"    , 21.64794077932, 22.64794077932 ],
+        [ "Waning Crescent" , 22.64794077932, 29.03058770576 ],
+        [ "New"             , 29.03058770576, 29.53058770576 ],
+        ]
 
 def draw_moon_layer(surf, y, size):
-    # based on @miyaichi's fork -> great idea :)
     _size = 1000
-    dt = datetime.datetime.fromtimestamp(JSON_DATA['daily']['data'][0]['ts'])
-    moon_age = (((dt.year - 11) % 19) * 11 + [0, 2, 0, 2, 2, 4, 5, 6, 7, 8, 9, 10][dt.month - 1] + dt.day) % 30
+    timestamp = time.time()
+
+    # Calculate moon 'age' from: https://minkukel.com/en/various/calculating-moon-phase/
+    total_secs = timestamp - NEW_2000
+    current_secs = total_secs % LUNARSECS
+    current_frac = current_secs / LUNARSECS
+    moon_age = current_frac * LUNARDAYS
+
+    # Use lookup - New/Full/First-Last Quarter are allowed 1 day of the lunar cycle each
+    for p in range(len(MOON_PHASE)):
+        if (moon_age >= MOON_PHASE[p][1]) and (moon_age <= MOON_PHASE[p][2]):
+            moon_string = MOON_PHASE[p][0]
 
     image = Image.new("RGBA", (_size + 2, _size + 2))
     draw = ImageDraw.Draw(image)
@@ -896,7 +918,7 @@ def draw_moon_layer(surf, y, size):
     draw.ellipse([(1, 1), (_size, _size)], fill=WHITE)
 
     # draw dark side of the moon
-    theta = moon_age / 14.765 * math.pi
+    theta = moon_age / (LUNARDAYS / 2) * math.pi
     sum_x = sum_length = 0
 
     for _y in range(-radius, radius, 1):
@@ -904,7 +926,8 @@ def draw_moon_layer(surf, y, size):
         x = radius * math.sin(alpha)
         length = radius * math.cos(theta) * math.sin(alpha)
 
-        if moon_age < 15:
+        #if moon_age < 15:
+        if moon_age < (LUNARDAYS/2):
             start = (radius - x, radius + _y)
             end = (radius + length, radius + _y)
         else:
@@ -916,32 +939,13 @@ def draw_moon_layer(surf, y, size):
         sum_x += 2 * x
         sum_length += end[0] - start[0]
 
-    percentage = round(100 - (sum_length / sum_x) * 100)
-    logger.info(f'moon phase age: {moon_age} percentage: {percentage}')
+    # Percentage Illuminated (accurate to around 2%)
+    percentage = round(100.0 - (sum_length / sum_x) * 100.0, 2)
+    moon_age_r = round(moon_age, 2)
+    logger.info(f'moon phase age: {moon_age_r} percentage: {percentage}')
 
     image = image.resize((size, size), Image.LANCZOS if AA else Image.BILINEAR)
     image = pygame.image.fromstring(image.tobytes(), image.size, image.mode)
-
-    # Moonphase
-    if percentage == 0 and moon_age < 1:
-        moon_string = 'New'
-    elif percentage > 0 and percentage < 50:
-        if moon_age <= 7:
-            moon_string = 'Waxing Crescent'
-        else:
-            moon_string = 'Waning Crescent'
-    elif percentage == 50:
-        if moon_age <= 14:
-            moon_string = 'First Quarter'
-        else:
-            moon_string = 'Last Quarter'
-    elif percentage > 50 and percentage < 100:
-        if moon_age <= 15:
-            moon_string = 'Waxing Gibbous'
-        else:
-            moon_string = 'Waning Gibbous'
-    elif percentage == 100 and moon_age > 14:
-        moon_string = 'Full'
 
     DrawString(surf, moon_string, FONT_SMALL, MAIN_FONT, 315).center(3,1)
 
