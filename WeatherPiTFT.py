@@ -715,7 +715,11 @@ class Update(object):
         stats_data = JSON_DATA['stats']
 
         summary_string = current_forecast['weather']['description']
-        temp_out = str(int(round(current_forecast['temp'])))
+        temp_x = current_forecast['temp']
+        if temp_x < 10.0:
+            temp_out = str(temp_x)
+        else:
+            temp_out = str(int(round(temp_x)))
         temp_out_unit = '°C' if METRIC else '°F'
         temp_out_string = str(temp_out + temp_out_unit)
         precip = JSON_DATA['daily']['data'][0]['pop']
@@ -727,8 +731,8 @@ class Update(object):
         humidity_string = str(f'{humidity}%')
         pressure_units = 'mb'
         pressure_string = str(pressure + pressure_units)
-        app_temp = str(int(round(current_forecast['app_temp'])))
-        feels_like = str("Feel: " + app_temp + temp_out_unit)
+        app_temp = str(current_forecast['app_temp'])
+        feels_like = str("Feels Like: " + app_temp + temp_out_unit)
         aqi = current_forecast['aqi']
         airqual_string = str(f'AQ {aqi}')
 
@@ -768,7 +772,7 @@ class Update(object):
         DrawImage(new_surf, images['refresh'], 0, size=15, fillcolor=RED if REFRESH_ERROR else GREEN).right(8)
         DrawImage(new_surf, images['path'], 0, size=15, fillcolor=RED if PATH_ERROR else GREEN).right(-5)
 
-        DrawImage(new_surf, images[WEATHERICON], 68, size=80).center(3, 1)
+        DrawImage(new_surf, images[WEATHERICON], 68, size=70).center(3, 1)
 
         if not ANIMATION:
             if PRECIPTYPE == config['LOCALE']['RAIN_STR']:
@@ -948,6 +952,8 @@ def draw_moon_layer(surf, y, size):
     image = pygame.image.fromstring(image.tobytes(), image.size, image.mode)
 
     DrawString(surf, moon_string, FONT_SMALL, MAIN_FONT, 315).center(3,1)
+    moon_info = f'{moon_age_r}d   {percentage}%'
+    DrawString(surf, moon_info, FONT_SMALL, MAIN_FONT, 330).center(3,1)
 
     x = (SURFACE_WIDTH / 2) - (size / 2)
 
